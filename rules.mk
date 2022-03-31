@@ -29,8 +29,30 @@ export VERSION
 SRC_DIRS := cmd pkg
 
 ALL_ARCH := amd64 arm arm64 ppc64le s390x
-BASEIMAGE ?= k8s.gcr.io/build-image/debian-base-$(ARCH):bullseye-v1.1.0
-IPTIMAGE ?= k8s.gcr.io/build-image/debian-iptables-$(ARCH):bullseye-v1.2.0
+
+# Multiarch image
+# Uploaded: Apr 3, 2022, 3:06:34 AM
+BASEIMAGE ?= gcr.io/distroless/static-debian11@sha256:d6fa9db9548b5772860fecddb11d84f9ebd7e0321c0cb3c02870402680cc315f
+
+ifeq ($(ARCH),amd64)
+	IPTIMAGE_DIGEST ?= sha256:8264d2f0ea2436c90bf51e8d7adb9525e7621d190df7a17109f2c61c066be897
+else ifeq ($(ARCH),arm)
+	IPTIMAGE_DIGEST ?= sha256:134c7c312b3e922cb34ed3d5eeee6e3bff3f518606f6b95dbcce8a1a7ba52aab
+else ifeq ($(ARCH),arm64)
+	IPTIMAGE_DIGEST ?= sha256:d7fd7a16a94f6635c5e0442178335f769ff8803173e28d535ff83c8dfe0add73
+else ifeq ($(ARCH),ppc64le)
+	IPTIMAGE_DIGEST ?= sha256:865b129ad8e34e4b573d337c75c6bc34e7cc28fdd841dcd4dadf08e2419eea1a
+else ifeq ($(ARCH),s390x)
+	IPTIMAGE_DIGEST ?= sha256:1120f1e852a44e32e3780a2d2cadbef09a38e27861ae5ca9192bb141cd75cc92
+else
+$(error Unsupported ARCH: $(ARCH))
+endif
+
+
+# This image is a custom built debian11 distroless image with multiarchitecture support.
+# It is built on the base distroless image, with iptables binary and libraries added
+# The source can be found at https://github.com/istio/distroless/tree/iptables
+IPTIMAGE ?= gcr.io/istio-release/iptables@$(IPTIMAGE_DIGEST)
 
 # These rules MUST be expanded at reference time (hence '=') as BINARY
 # is dynamically scoped.
