@@ -13,6 +13,15 @@
 # limitations under the License.
 
 FROM ARG_FROM_IPT
+
+# If we're building for another architecture than amd64, the
+# CROSS_BUILD_ placeholder is removed so e.g. CROSS_BUILD_COPY turns
+# into COPY. If we're building normally, for amd64, CROSS_BUILD lines
+# are removed
+__CROSS_BUILD_COPY__ images/dnsmasq/_output/ARG_ARCH/docker/qemu-ARG_QEMU_ARCH-static /usr/bin/
+
+RUN ["apk", "update"]
+RUN ["apk", "add", "iptables", "ip6tables"]
 ADD bin/ARG_ARCH/ARG_BIN /ARG_BIN
 EXPOSE 53 53/udp
 EXPOSE 53 53/tcp

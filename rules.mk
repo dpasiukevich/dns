@@ -30,7 +30,24 @@ SRC_DIRS := cmd pkg
 
 ALL_ARCH := amd64 arm arm64 ppc64le s390x
 BASEIMAGE ?= gcr.io/distroless/static-debian11:latest-$(ARCH)
-IPTIMAGE ?= k8s.gcr.io/build-image/debian-iptables-$(ARCH):bullseye-v1.2.0
+
+ifeq ($(ARCH),amd64)
+	IPTIMAGE ?= $(ARCH)/alpine:3.15
+else ifeq ($(ARCH),arm)
+	QEMUARCH := arm
+	IPTIMAGE ?= arm32v7/alpine:3.15
+else ifeq ($(ARCH),arm64)
+	QEMUARCH := aarch64
+	IPTIMAGE ?= arm64v8/alpine:3.15
+else ifeq ($(ARCH),ppc64le)
+	QEMUARCH := ppc64le
+	IPTIMAGE ?= $(ARCH)/alpine:3.15
+else ifeq ($(ARCH),s390x)
+	QEMUARCH := s390x
+	IPTIMAGE ?= $(ARCH)/alpine:3.15
+else
+$(error Unsupported ARCH: $(ARCH))
+endif
 
 # These rules MUST be expanded at reference time (hence '=') as BINARY
 # is dynamically scoped.
@@ -122,6 +139,7 @@ $(GO_BINARIES): build-dirs
 define DOCKERFILE_RULE
 .$(BINARY)-$(ARCH)-dockerfile: Dockerfile.$(BINARY)
 	@echo generating Dockerfile $$@ from $$<
+ifeq ($(ARCH), amd64)
 	@sed					\
 	    -e 's|ARG_ARCH|$(ARCH)|g' \
 	    -e 's|ARG_BIN|$(BINARY)|g' \
@@ -129,10 +147,23 @@ define DOCKERFILE_RULE
 	    -e 's|ARG_FROM_BASE|$(BASEIMAGE)|g' \
 	    -e 's|ARG_FROM_IPT|$(IPTIMAGE)|g' \
 	    -e 's|ARG_VERSION|$(VERSION)|g' \
+	    -e '/__CROSS_BUILD_COPY__/d' \
 	    $$< > $$@
+else
+	@sed					\
+	    -e 's|ARG_ARCH|$(ARCH)|g' \
+	    -e 's|ARG_BIN|$(BINARY)|g' \
+	    -e 's|ARG_REGISTRY|$(REGISTRY)|g' \
+	    -e 's|ARG_FROM_BASE|$(BASEIMAGE)|g' \
+	    -e 's|ARG_FROM_IPT|$(IPTIMAGE)|g' \
+	    -e 's|ARG_VERSION|$(VERSION)|g' \
+	    -e 's/__CROSS_BUILD_COPY__/COPY/g' \
+	    -e 's|ARG_QEMU_ARCH|$(QEMUARCH)|g' \
+	    $$< > $$@
+endif
 .$(BUILDSTAMP_NAME)-container: .$(BINARY)-$(ARCH)-dockerfile
 endef
-$(foreach BINARY,$(CONTAINER_BINARIES),$(eval $(DOCKERFILE_RULE)))
+$(foreach BINARY,$(CONTAINER_BINARIES),$(eval $(call DOCKERFILE_RULE)))
 
 
 # Rules for containers
